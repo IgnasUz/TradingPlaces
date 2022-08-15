@@ -5,9 +5,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
+using Reutberg;
 using Serilog;
 using Serilog.Events;
 using Swashbuckle.AspNetCore.Swagger;
+using TradingPlaces.WebApi.DataAccess.ApiClients;
+using TradingPlaces.WebApi.DataAccess.Repositories;
 using TradingPlaces.WebApi.Filters;
 using TradingPlaces.WebApi.Services;
 using IHostingEnvironment = Microsoft.AspNetCore.Hosting.IHostingEnvironment;
@@ -30,6 +33,10 @@ namespace TradingPlaces.WebApi
                     options.SerializerSettings.DateTimeZoneHandling = DateTimeZoneHandling.RoundtripKind;
                     options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
                 });
+
+            services.AddSingleton<IStrategyRepository, StrategyRepository>();            
+            services.AddSingleton<IReutbergService, ReutbergService>();
+            services.AddSingleton<ITradeClient, TradeClient>();
 
             services.AddHostedService<StrategyManagementService>();
             services.AddSingleton<IHostedServiceAccessor<IStrategyManagementService>, HostedServiceAccessor<IStrategyManagementService>>();

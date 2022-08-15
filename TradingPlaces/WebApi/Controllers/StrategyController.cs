@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Swashbuckle.AspNetCore.Annotations;
@@ -14,7 +13,8 @@ namespace TradingPlaces.WebApi.Controllers
         private readonly IHostedServiceAccessor<IStrategyManagementService> _strategyManagementService;
         private readonly ILogger<StrategyController> _logger;
 
-        public StrategyController(IHostedServiceAccessor<IStrategyManagementService> strategyManagementService, ILogger<StrategyController> logger)
+        public StrategyController(IHostedServiceAccessor<IStrategyManagementService> strategyManagementService,
+            ILogger<StrategyController> logger)
         {
             _strategyManagementService = strategyManagementService;
             _logger = logger;
@@ -23,9 +23,10 @@ namespace TradingPlaces.WebApi.Controllers
         [HttpPost]
         [SwaggerOperation(nameof(RegisterStrategy))]
         [SwaggerResponse(StatusCodes.Status200OK, "OK", typeof(string))]
-        public IActionResult RegisterStrategy(StrategyDetailsDto strategyDetails)
+        [SwaggerResponse(StatusCodes.Status400BadRequest, "Bad Request")]
+        public IActionResult RegisterStrategy([FromBody] StrategyDetailsDto strategyDetails)
         {
-            throw new NotImplementedException();
+            return Ok(_strategyManagementService.Service.Add(strategyDetails));
         }
 
         [HttpDelete("{id}")]
@@ -34,7 +35,9 @@ namespace TradingPlaces.WebApi.Controllers
         [SwaggerResponse(StatusCodes.Status404NotFound, "Not Found")]
         public IActionResult UnregisterStrategy(string id)
         {
-            throw new NotImplementedException();
+            _strategyManagementService.Service.Remove(id);
+
+            return Ok();
         }
     }
 }
