@@ -1,13 +1,13 @@
 ﻿using System.Collections.Generic;
-using TradingPlaces.WebApi.Dtos;
+using TradingPlaces.WebApi.Models;
 
 namespace TradingPlaces.WebApi.DataAccess.Repositories
 {
     public class StrategyRepository : IStrategyRepository
     {
-        private readonly Dictionary<string, StrategyDto> _strategies = new Dictionary<string, StrategyDto>();
+        private readonly Dictionary<string, Strategy> _strategies = new Dictionary<string, Strategy>();
 
-        public bool Add(StrategyDto strategy)
+        public bool Add(Strategy strategy)
         {
             return _strategies.TryAdd(strategy.Id, strategy);
         }
@@ -17,7 +17,7 @@ namespace TradingPlaces.WebApi.DataAccess.Repositories
             return _strategies.Remove(id);
         }
 
-        public IEnumerable<StrategyDto> GetAll()
+        public IEnumerable<Strategy> GetAll()
         {
             return _strategies.Values;
         }

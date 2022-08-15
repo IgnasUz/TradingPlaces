@@ -7,6 +7,7 @@
 
         public const string TickerInvalidCharacters = "Valid ticker identifier contains only uppercase letters or numbers";
         public const string TickerInvalidLength = "Valid ticker identifier length is between 3 and 5 inclusive";
+        public const string InvalidInstructions = "Strategy contains invalid instructions";
 
         public const string FailedToGetTickerPrices = "Failed to get ticker prices";
         public const string FailedToExecuteTrade = "Failed to execute trade";
