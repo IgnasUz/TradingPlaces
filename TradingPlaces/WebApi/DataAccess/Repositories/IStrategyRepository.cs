@@ -1,12 +1,12 @@
-﻿using TradingPlaces.WebApi.Dtos;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using TradingPlaces.WebApi.Models;
 
 namespace TradingPlaces.WebApi.DataAccess.Repositories
 {
     public interface IStrategyRepository
     {
-        bool Add(StrategyDto strategy);        
+        bool Add(Strategy strategy);
         bool Remove(string id);
-        IEnumerable<StrategyDto> GetAll();
+        IEnumerable<Strategy> GetAll();
     }
 }

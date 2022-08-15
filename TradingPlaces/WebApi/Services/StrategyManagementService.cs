@@ -9,6 +9,8 @@ using TradingPlaces.WebApi.Dtos;
 using TradingPlaces.WebApi.Exceptions;
 using TradingPlaces.WebApi.Constants;
 using TradingPlaces.WebApi.DataAccess.ApiClients;
+using TradingPlaces.WebApi.Validators;
+using TradingPlaces.WebApi.Models;
 
 namespace TradingPlaces.WebApi.Services
 {
@@ -33,7 +35,7 @@ namespace TradingPlaces.WebApi.Services
 
         public string Add(StrategyDetailsDto strategyDetails)
         {
-            var errorMessage = Validate(strategyDetails.Ticker);
+            var errorMessage = strategyDetails.Validate();
             
             if (!string.IsNullOrEmpty(errorMessage))
             {
@@ -41,11 +43,15 @@ namespace TradingPlaces.WebApi.Services
                 throw new InvalidStrategyException(errorMessage);
             }
 
-            var strategy = new StrategyDto
+            var strategy = new Strategy
             {
                 Id = Guid.NewGuid().ToString(),
-                StrategyDetails = strategyDetails,
-                TickerPriceWhenRegistered = _tradeClient.GetQuote(strategyDetails.Ticker)
+                Ticker = strategyDetails.Ticker,
+                Instruction = strategyDetails.Instruction,
+                PricePoint = Calculate(strategyDetails.Instruction,
+                                _tradeClient.GetQuote(strategyDetails.Ticker),
+                                strategyDetails.PriceMovement),
+                Quantity = strategyDetails.Quantity
             };
 
             if (!_strategyRepository.Add(strategy))
@@ -55,7 +61,7 @@ namespace TradingPlaces.WebApi.Services
             }
 
             return strategy.Id;
-        }
+        }        
 
         public void Remove(string id)
         {
@@ -70,7 +76,7 @@ namespace TradingPlaces.WebApi.Services
         {
             var allStrategies = _strategyRepository.GetAll();
 
-            var uniqueTickers = allStrategies.Select(x => x.StrategyDetails.Ticker).Distinct().ToList();
+            var uniqueTickers = allStrategies.Select(x => x.Ticker).Distinct().ToList();
 
             foreach (var ticker in uniqueTickers)
             {
@@ -78,7 +84,7 @@ namespace TradingPlaces.WebApi.Services
                 {
                     var currentPrice = _tradeClient.GetQuote(ticker);
 
-                    var tickerStrategies = allStrategies.Where(x => x.StrategyDetails.Ticker == ticker).ToList();
+                    var tickerStrategies = allStrategies.Where(x => x.Ticker == ticker).ToList();
 
                     ExcecuteTradeDecision(currentPrice, tickerStrategies);
                 }
@@ -90,65 +96,39 @@ namespace TradingPlaces.WebApi.Services
 
             return Task.CompletedTask;
         }
-
-        public void ExcecuteTradeDecision(decimal currentPrice, List<StrategyDto> strategies)
+        
+        public void ExcecuteTradeDecision(decimal currentPrice, List<Strategy> strategies)
         {
             foreach (var strategy in strategies)
             {
-                var strategyDetails = strategy.StrategyDetails;
-                var originalPrice = strategy.TickerPriceWhenRegistered;
 
-                if (ShouldBuy(strategyDetails, originalPrice, currentPrice))
+                if (strategy.DecideToTrade(currentPrice) && strategy.Instruction == BuySell.Buy)
                 {
-                    _tradeClient.Buy(strategyDetails.Ticker, strategyDetails.Quantity);
+                    _tradeClient.Buy(strategy.Ticker, strategy.Quantity);
                     Remove(strategy.Id);
                 }
 
-                if (ShouldSell(strategyDetails, originalPrice, currentPrice))
+                if (strategy.DecideToTrade(currentPrice) && strategy.Instruction == BuySell.Sell)
                 {
-                    _tradeClient.Sell(strategyDetails.Ticker, strategyDetails.Quantity);
+                    _tradeClient.Sell(strategy.Ticker, strategy.Quantity);
                     Remove(strategy.Id);
                 }
             }
         }
 
-        public bool ShouldBuy(StrategyDetailsDto strategydetails, decimal originalPrice, decimal currentPrice)
+        private decimal Calculate(BuySell instruction, decimal currentPrice, decimal priceMovement)
         {
-            if (strategydetails.Instruction != BuySell.Buy)
+            if (instruction == BuySell.Buy)
             {
-                return false;
+                return currentPrice - (currentPrice * priceMovement);
             }
 
-            var priceToBuy = originalPrice - (originalPrice * strategydetails.PriceMovement);
+            if (instruction == BuySell.Sell)
+            {
+                return currentPrice + (currentPrice * priceMovement);
+            }
 
-            return currentPrice <= priceToBuy;
+            throw new InvalidStrategyException(ExceptionMessages.InvalidInstructions);
         }
-
-        public bool ShouldSell(StrategyDetailsDto strategydetails, decimal originalPrice, decimal currentPrice)
-        {
-            if (strategydetails.Instruction != BuySell.Sell)
-            {
-                return false;
-            }
-
-            var priceToSell = originalPrice + (originalPrice * strategydetails.PriceMovement);
-
-            return currentPrice >= priceToSell;
-        }
-
-        private string Validate(string ticker)
-        {
-            if (!ticker.All(char.IsLetterOrDigit) || ticker.Any(char.IsLower))
-            {
-                return ExceptionMessages.TickerInvalidCharacters;
-            }
-
-            if (ticker.Length < 3 || ticker.Length > 5)
-            {
-                return ExceptionMessages.TickerInvalidLength;
-            }
-
-            return null;
-        }        
     }
 }

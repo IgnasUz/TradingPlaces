@@ -1,0 +1,8 @@
+Some implementation descisions:
+1. Generally, I would use FluentValidation for validating StrategyDetailsDto and add unit tests, but decided to go with simple static validator for simplicity
+2. Included only happy path unit tests to StrategyManagementServiceTests for simplicity, generally would include all relevant tests
+
+Total time spent: ~8 hours
+1. Reviewing documentation: ~1 hour
+2. Unit tests: ~1h
+3. Implementation: ~6 hours

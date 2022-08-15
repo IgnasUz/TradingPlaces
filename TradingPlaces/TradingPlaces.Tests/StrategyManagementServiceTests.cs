@@ -5,6 +5,7 @@ using TradingPlaces.Resources;
 using TradingPlaces.WebApi.DataAccess.ApiClients;
 using TradingPlaces.WebApi.DataAccess.Repositories;
 using TradingPlaces.WebApi.Dtos;
+using TradingPlaces.WebApi.Models;
 using TradingPlaces.WebApi.Services;
 using Xunit;
 
@@ -29,117 +30,97 @@ namespace TradingPlaces.Tests
         }
 
         [Fact]
-        public void ExecuteTradeDecision_ExecutesBuyOnce_WhenPriceMatchesStrategy()
+        public void Add_RegistersStrategy_WhenNoExceptionsAreThrown()
         {
             // Arrange
-            const decimal ExpectedPriceMovement = 0.02m;
-            const decimal TickerPriceWhenRegistered = 100;
-            var priceToBuy = TickerPriceWhenRegistered - (TickerPriceWhenRegistered * ExpectedPriceMovement);
-
-            var strategy = new StrategyDto
+            var strategyDetails = new StrategyDetailsDto
             {
-                Id = "SomeString",
-                StrategyDetails = new StrategyDetailsDto
-                {
-                    Ticker = "TEST",
-                    PriceMovement = ExpectedPriceMovement,
-                    Instruction = BuySell.Buy
-                },
-                TickerPriceWhenRegistered = TickerPriceWhenRegistered
+                Ticker = "TEST",
+                PriceMovement = 0.01m,
+                Quantity = 1,
+                Instruction = BuySell.Sell,
+            };
+
+            _tradeClientMock.Setup(x => x.GetQuote(It.IsAny<string>())).Returns(100);
+            _strategyRepositoryMock.Setup(x => x.Add(It.IsAny<Strategy>())).Returns(true);
+
+            // Act
+            var exception = Record.Exception(() => _strategyManagementService.Add(strategyDetails));
+
+            // Arrange
+            Assert.Null(exception);
+
+            _strategyRepositoryMock.Verify(x => x.Add(It.IsAny<Strategy>()), Times.Once);
+        }
+
+        [Fact]
+        public void Remove_UnRegistersStrategy_WhenNoExceptionsAreThrown()
+        {
+            // Arrange
+            const string STRATEGY_ID = "TestID";
+
+            _strategyRepositoryMock.Setup(x => x.Remove(It.IsAny<string>())).Returns(true);
+
+            // Act
+            var exception = Record.Exception(() => _strategyManagementService.Remove(STRATEGY_ID));
+
+            // Arrange
+            Assert.Null(exception);
+
+            _strategyRepositoryMock.Verify(x => x.Remove(STRATEGY_ID), Times.Once);
+        }
+
+
+        [Fact]
+        public void ExecuteTradeDecision_CallsBuyOnce_WhenCurrentPriceMatchesPricePoint()
+        {
+            // Arrange
+            const decimal PRICE_TO_BUY = 100;
+
+            var strategy = new Strategy
+            {
+                Id = "TestID",
+                Ticker = "TEST",
+                Instruction = BuySell.Buy,
+                PricePoint = PRICE_TO_BUY
             };
 
             _strategyRepositoryMock.Setup(x => x.Remove(strategy.Id)).Returns(true);
 
             // Act
-            _strategyManagementService.ExcecuteTradeDecision(priceToBuy, new List<StrategyDto>() { strategy });
+            _strategyManagementService.ExcecuteTradeDecision(PRICE_TO_BUY, new List<Strategy>() { strategy });
 
             // Assert
-            _tradeClientMock.Verify(x => x.Buy(strategy.StrategyDetails.Ticker, strategy.StrategyDetails.Quantity),
+            _tradeClientMock.Verify(x => x.Buy(strategy.Ticker, strategy.Quantity),
                 Times.Once);
 
             _strategyRepositoryMock.Verify(x => x.Remove(strategy.Id), Times.Once);
         }
 
         [Fact]
-        public void ExecuteTradeDecision_ExecutesSellOnce_WhenPriceMatchesStrategy()
+        public void ExecuteTradeDecision_CallsSellOnce_WhenCurrentPriceMatchesPricePoint()
         {
             // Arrange
-            const decimal ExpectedPriceMovement = 0.02m;
-            const decimal TickerPriceWhenRegistered = 100;
-            var priceToSell = TickerPriceWhenRegistered + (TickerPriceWhenRegistered * ExpectedPriceMovement);
+            const decimal PRICE_TO_SELL = 100;
 
-            var strategy = new StrategyDto
+            var strategy = new Strategy
             {
-                Id = "SomeString",
-                StrategyDetails = new StrategyDetailsDto
-                {
-                    Ticker = "TEST",
-                    PriceMovement = ExpectedPriceMovement,
-                    Instruction = BuySell.Sell
-                },
-                TickerPriceWhenRegistered = TickerPriceWhenRegistered
+                Id = "TestID",
+                Ticker = "TEST",
+                Instruction = BuySell.Sell,
+                PricePoint = PRICE_TO_SELL
             };
 
             _strategyRepositoryMock.Setup(x => x.Remove(strategy.Id)).Returns(true);
 
             // Act
-            _strategyManagementService.ExcecuteTradeDecision(priceToSell, new List<StrategyDto>() { strategy });
+            _strategyManagementService.ExcecuteTradeDecision(PRICE_TO_SELL, new List<Strategy>() { strategy });
 
             // Assert
-            _tradeClientMock.Verify(x => x.Sell(strategy.StrategyDetails.Ticker, strategy.StrategyDetails.Quantity),
+            _tradeClientMock.Verify(x => x.Sell(strategy.Ticker, strategy.Quantity),
                 Times.Once);
 
             _strategyRepositoryMock.Verify(x => x.Remove(strategy.Id), Times.Once);
-        }
-
-        [Fact]
-        public void ShouldBuy_ReturnsTrue_WhenPriceMatchesStrategy()
-        {
-            // Arrange
-            const decimal ExpectedPriceMovement = 0.02m;
-            const decimal TickerPriceWhenRegistered = 100;
-
-            var priceToBuy = TickerPriceWhenRegistered - (TickerPriceWhenRegistered * ExpectedPriceMovement);
-            var strategyDetails = new StrategyDetailsDto
-            {
-                PriceMovement = ExpectedPriceMovement,
-                Instruction = BuySell.Buy
-            };
-
-            _tradeClientMock.Setup(x => x.GetQuote(It.IsAny<string>())).Returns(priceToBuy);
-
-            // Act
-            var result = _strategyManagementService.ShouldBuy(strategyDetails,
-                TickerPriceWhenRegistered,
-                _tradeClientMock.Object.GetQuote(It.IsAny<string>()));
-
-            // Assert
-            Assert.True(result);
-        }
-
-        [Fact]
-        public void ShouldSell_ReturnsTrue_WhenPriceMatchesStrategy()
-        {
-            // Arrange
-            const decimal ExpectedPriceMovement = 0.02m;
-            const decimal TickerPriceWhenRegistered = 100;
-
-            var priceToSell = TickerPriceWhenRegistered + (TickerPriceWhenRegistered * ExpectedPriceMovement);
-            var strategyDetails = new StrategyDetailsDto
-            {
-                PriceMovement = ExpectedPriceMovement,
-                Instruction = BuySell.Sell
-            };
-
-            _tradeClientMock.Setup(x => x.GetQuote(It.IsAny<string>())).Returns(priceToSell);
-
-            // Act
-            var result = _strategyManagementService.ShouldSell(strategyDetails,
-                TickerPriceWhenRegistered,
-                _tradeClientMock.Object.GetQuote(It.IsAny<string>()));
-
-            // Assert
-            Assert.True(result);
         }
     }
 }
